@@ -1,0 +1,107 @@
+<html>
+   <head>
+     <title>Snake</title>
+
+      <style> 
+         body {
+            background: #dddddd;
+         }
+
+         #canvas {
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            margin: 20px;
+            background: #ffffff;
+            border: thin solid #aaaaaa;
+         }
+          #scores {
+              position: absolute;
+              left: 1060px;
+              top: 20px;
+              width:100px;
+          }
+      </style>
+   </head>
+
+  <body>
+    <canvas id='canvas' width='1000' height='600'>
+      Canvas not supported
+    </canvas>
+    <div id="scores">
+        
+    </div>
+    <script src="{{ static_url("reconnecting-websocket.js") }}" type="text/javascript"></script>
+    <script>
+    var canvas = document.getElementById('canvas'),
+    c = canvas.getContext('2d'),
+    direction='up', nick='Anonymous';
+    c.lineWidth = 1;
+    var snakes=[
+    ];
+    var apples=[
+        [10,10],
+        [2,2]
+    ];
+    var colors = ['red', 'blue', 'green', 'black', 'purple', 'teal', 'navy', 'lime', 'olive', 'maroon', 'aqua']
+    function redraw(){
+        c.clearRect(0, 0, canvas.width, canvas.height);
+        c.stroke();
+        for(var j=0; j<snakes.length; j++){
+            c.fillStyle=colors[j];
+        for(var i=0; i<snakes[j].length; i++) {
+        c.fillRect(snakes[j][i][0]*10,snakes[j][i][1]*10, 10,10);
+        }
+            c.stroke();
+        }
+        for(var i=0; i<apples.length; i++){
+            c.strokeStyle="#FF00DD";
+            c.beginPath();
+            c.arc(apples[i][0]*10+5,apples[i][1]*10+5,5,0,2*Math.PI);
+            c.stroke();
+        }
+    }
+    var updater = {
+    socket: null,
+
+    start: function() {
+        if(updater.socket && updater.socket.readyState !== updater.socket.CLOSED) return;
+        var url = "ws://" + location.host + "/gamesocket";
+        updater.socket = new ReconnectingWebSocket(url);
+        updater.socket.onmessage = function(event) {
+            updater.showMessage(JSON.parse(event.data));
+            redraw();
+        }
+        updater.socket.onopen = function(event){
+            updater.socket.send(JSON.stringify({'nick': nick}));
+        }
+    },
+    showMessage: function(message) {
+        snakes = message.snakes;
+        apples = message.apples;
+        document.getElementById('scores').innerHTML="";
+            for(var i=0; i<message.scores.length; i++){
+            document.getElementById('scores').innerHTML+=message.scores[i][0]+': '+message.scores[i][1]+'<br>';
+            }
+    }
+    }
+    document.onkeydown = function(e){
+        var keys = {37:'left', 39:'right', 38:'up', 40:'down'};
+        var k = keys[e.keyCode];
+        if(k && k != direction){
+            if(direction == 'up' && k == 'down') return;
+            if(direction == 'down' && k == 'up') return;
+            if(direction == 'left' && k == 'right') return;
+            if(direction == 'right' && k == 'left') return;
+            direction = keys[e.keyCode];
+            updater.socket.send(JSON.stringify({direction:direction}));
+        }
+    }
+    window.onload = function(){
+        nick = window.prompt("Enter your name","Anonymous");
+        if(!nick) nick = 'Anonymous';
+        updater.start();
+    }
+    </script>
+  </body>
+</html>
